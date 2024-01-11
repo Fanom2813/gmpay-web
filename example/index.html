@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMPAY TEST</title>
+</head>
+
+<body>
+    <input type="text" value="+2567000000" name="phoneNumber" placeholder="Phone Number">
+    <input type="number" value="1000" name="amount" placeholder="Amount">
+
+
+    <button onclick="payNow()">Pay Now</button>
+    <button onclick="sendFunds()">Pay Out</button>
+
+    <script src="../dist/bundle.js"></script>
+    <script>
+        function payNow() {
+            const phoneNumber = document.querySelector('input[name="phoneNumber"]').value;
+            const amount = document.querySelector('input[name="amount"]').value;
+
+            const payment = new GMPay("API_KEY", 'API_SECRET');
+
+            payment.presentPaymentDialog(phoneNumber, amount, null, null, function (result) {
+                console.log("Received callback: " , result);
+            });
+        }
+
+        function sendFunds() {
+            const phoneNumber = document.querySelector('input[name="phoneNumber"]').value;
+            const amount = document.querySelector('input[name="amount"]').value;
+
+            const payment = new GMPay("API_KEY", 'API_SECRET');
+
+            payment.presentWithdrawDialog(phoneNumber, amount, null, null, function (result) {
+                console.log("Received callback: " , result);
+            });
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,38 @@
+{
+  "name": "gmpay",
+  "version": "1.0.4",
+  "description": "gmpay (your financial companion), plugin for GMPay",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "node bundle.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fanom2813/gmpay-web.git"
+  },
+  "keywords": [
+    "payment",
+    "plugin",
+    "GMPay"
+  ],
+  "author": "Green Monday",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/fanom2813/gmpay-web/issues"
+  },
+  "homepage": "https://gmpayapp.com",
+  "private": false,
+  "dependencies": {
+    "axios": "^1.6.5",
+    "sweetalert2": "^11.10.2"
+  },
+  "devDependencies": {
+    "browserify": "^17.0.0",
+    "cssify": "^1.0.3",
+    "esmify": "^2.1.1",
+    "rimraf": "^5.0.5",
+    "terser": "^5.26.0",
+    "tinyify": "^4.0.0",
+    "watchify": "^4.0.0"
+  }
+}
