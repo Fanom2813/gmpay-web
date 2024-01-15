@@ -1,0 +1,2 @@
+- Add info about the plugin in the info dialog
+- add transaction info in the info dialog

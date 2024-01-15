@@ -22,7 +22,7 @@ class GMPay {
      * The base URL for API requests.
      * @type {string}
      */
-    baseURL = 'http://localhost:8000/api/v2/';
+    baseURL = 'https://api.gmpayapp.com/api/v2/';
     headerWithLogoHtml = `<div class="gm-logo"></div><p class="gm-motto">Your financial companion</p>`;
     footerHtml = '<a class="gm-text-button" id="showMerchantInfoButton" ><i class="ti ti-help"></i>About your merchant</a>';
     merchantDetails = {};
