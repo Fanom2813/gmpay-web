@@ -1,6 +1,6 @@
 {
   "name": "gmpay",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "gmpay (your financial companion), plugin for GMPay",
   "main": "src/index.js",
   "scripts": {
