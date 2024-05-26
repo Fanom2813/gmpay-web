@@ -1,6 +1,6 @@
 {
   "name": "gmpay",
-  "version": "1.0.5",
+  "version": "1.0.8",
   "description": "gmpay (your financial companion), plugin for GMPay",
   "main": "src/index.js",
   "scripts": {
@@ -23,8 +23,8 @@
   "homepage": "https://gmpayapp.com",
   "private": false,
   "dependencies": {
-    "axios": "^1.6.5",
-    "sweetalert2": "^11.10.2"
+    "axios": "^1.7.2",
+    "sweetalert2": "^11.11.0"
   },
   "devDependencies": {
     "browserify": "^17.0.0",

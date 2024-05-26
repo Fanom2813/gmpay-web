@@ -4,3 +4,4 @@
 /coverage.data
 /coverage/
 dist
+test.js

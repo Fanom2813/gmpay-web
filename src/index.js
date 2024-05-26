@@ -11,7 +11,12 @@ const fillRequiredFields = 'Please fill in all required fields';
 const pleaseWait = "Please wait...";
 const merchantCouldNotBeValidated = "Your merchant could not be validated, try again or contact support.";
 const transactionSuccessful = 'Transaction successful';
+const paymentMethodNotAvailable = 'Payment method not available';
 
+const baseURL = 'https://gateway.gmpayapp.com/';
+const signature = 'com.gmpayapp.webplugin';
+const headerWithLogoHtml = `<div class="gm-logo"></div><p class="gm-motto">Your financial companion</p>`;
+const footerHtml = '<a class="gm-text-button" id="showMerchantInfoButton" ><i class="ti ti-help"></i>About your merchant</a>';
 
 
 /**
@@ -22,9 +27,7 @@ class GMPay {
      * The base URL for API requests.
      * @type {string}
      */
-    baseURL = 'https://api.gmpayapp.com/api/v2/';
-    headerWithLogoHtml = `<div class="gm-logo"></div><p class="gm-motto">Your financial companion</p>`;
-    footerHtml = '<a class="gm-text-button" id="showMerchantInfoButton" ><i class="ti ti-help"></i>About your merchant</a>';
+
     merchantDetails = {};
     extraData = {};
     isCashOut = false;
@@ -58,12 +61,14 @@ class GMPay {
         this.privateKey = privateKey;
 
         this.instance = axios.create({
-            baseURL: this.baseURL,
+            baseURL: baseURL,
             headers: {
                 'Content-Type': 'application/json; charset=UTF-8',
+                'Authorization': signature,
                 'apiKey': `${this.publicKey}`,
                 ...(this.privateKey && { 'secret': `${this.privateKey}` })
             }
+
         });
     }
 
@@ -113,6 +118,26 @@ class GMPay {
         }
     }
 
+    /**
+     * Retrieves the available payment methods.
+     * @returns {Promise<Array>} A promise that resolves to an array of payment methods.
+     */
+    async getPaymentMethods() {
+        this.showLoading();
+        try {
+            var result = await this.instance.get('modules/can-process-payment');
+
+            if (result.data) {
+                return result.data;
+            } else {
+                this.errorOccurred(paymentMethodNotAvailable);
+            }
+
+        } catch (error) {
+            this.errorOccurred(this.getErrorMessage(error, paymentMethodNotAvailable))
+        }
+    }
+
 
     /**
      * Generates a payment template HTML string.
@@ -124,19 +149,16 @@ class GMPay {
      */
     getPaymentTemplate(methods, phoneNumber, amount) {
         return `<div class="gm-payment-form">
+                <label for="account" >Account</label>
+                <input type="text" id="account" name="account" placeholder="Enter phone number or GMPay account" value='${phoneNumber}'>
+                <label for="amount">Amount</label>
+                <input type="text" id="amount" name="amount" value="${Number(amount).toLocaleString()}">
                 <label for="paymentMethod">Payment Method</label>
                 <select  id="paymentMethod" name="paymentMethod">
                     <option>Select Payment Method</option>
-                    ${methods.map(method => `<option value="${method.data.method}">${method.name}</option>`)}
+                    ${methods.map(method => `<option value="${method.module}">${method.optionName}</option>`)}
                 </select>
-                <label for="amount">Amount</label>
-                <input type="text" id="amount" name="amount"  value="${Number(amount).toLocaleString()}">
                 <div id="extra-input" class="gm-payment-form p0m0"></div>
-                <div class="gm-info hidden" id="paymentMethodDescriptionContainer">
-                    <h4 class="gm-info-label"><i class="ti ti-info-circle-filled"></i>Info</h4>
-                    <small class="gm-info-value" id="paymentMethodDescription">
-                    </small>
-                </div>
             </div>`;
     }
 
@@ -208,39 +230,63 @@ class GMPay {
         if (!this.account) {
             this.account = account;
             this.amount = amount;
-            await this.getMerchantInfo();
             this.reference = reference
             this.metadata = metadata;
             this.callback = callback;
         }
 
+        const methods = await this.getPaymentMethods();
 
         let result = await Swal.fire({
-            title: this.headerWithLogoHtml,
-            html: this.getPaymentTemplate(this.merchantDetails.methods, this.account, this.amount),
+            title: headerWithLogoHtml,
+            html: this.getPaymentTemplate(methods, this.account, this.amount),
             confirmButtonText: 'Proceed',
             denyButtonText: 'Cancel',
             showDenyButton: true,
-            footer: this.footerHtml,
+            footer: this.merchantDetails.businessName ? footerHtml : null,
 
             didOpen: () => {
-                document.getElementById('showMerchantInfoButton').addEventListener('click', () => {
-                    this.showMerchantInfo();
-                });
-                document.getElementById('paymentMethod').addEventListener('change', (e) => {
-                    const method = this.merchantDetails.methods.find(method => method.data.method === e.target.value);
-                    this.paymentMethod = method.data;
-                    if (method) {
-                        document.getElementById('paymentMethodDescriptionContainer').classList.remove('hidden');
-                        document.getElementById('paymentMethodDescription').innerHTML = method.description;
+                if (this.merchantDetails.businessName) {
+                    document.getElementById('showMerchantInfoButton').addEventListener('click', () => {
+                        this.showMerchantInfo();
+                    });
+                }
 
-                        if (method.form && method.form.fields) {
-                            let extraInput = document.getElementById('extra-input');
+                document.getElementById('account').addEventListener('input', (e) => {
+                    this.account = e.target.value;
+                });
+
+
+                document.getElementById('paymentMethod').addEventListener('change', (e) => {
+                    const method = methods.find(method => method.module === e.target.value);
+                    let extraInput = document.getElementById('extra-input');
+
+                    extraInput.innerHTML = '';
+                    this.paymentMethod = method;
+
+                    var descElement = document.getElementById('methodDescription');
+                    if (descElement) {
+                        descElement.remove();
+                    }
+
+                    //attach description below the select
+                    if (method && method.description) {
+                        var descElement = document.createElement('small');
+                        descElement.setAttribute('id', 'methodDescription');
+                        descElement.innerHTML = method.description;
+                        descElement.style.marginBottom = '5px';
+                        document.getElementById('paymentMethod').insertAdjacentElement('afterend', descElement);
+                    }
+
+                    if (method) {
+                    
+                        if (method.extraFields) {
+
                             extraInput.innerHTML = '';
-                            method.form.fields.forEach(field => {
+                            method.extraFields.forEach(field => {
                                 var labelElement = document.createElement('label');
                                 labelElement.setAttribute('for', field.key);
-                                labelElement.innerHTML = field.label + (field.required ? ' (required)' : '');
+                                labelElement.innerHTML = field.label + (field.required ? ' (required)' : '(Optional)');
                                 extraInput.appendChild(labelElement);
 
                                 if (field.required && field.key != 'account') {
@@ -285,42 +331,50 @@ class GMPay {
                                 }
 
                             });
-
-                            if (method.data.otpUrl) {
-                                var otpElement = document.createElement('button');
-                                otpElement.setAttribute('id', 'otpButton');
-                                otpElement.setAttribute('class', 'gm-button');
-                                otpElement.innerHTML = 'Get OTP';
-                                otpElement.addEventListener('click', async (e) => {
-                                    try {
-
-                                        var result = method.data.type === "POST" ? (await this.instance.post(method.data.otpUrl, { account: this.account })) : (await this.instance.get(method.data.otpUrl));
-                                        if (result.data.pinId) {
-                                            Swal.showValidationMessage(
-                                                `OTP sent successfully`
-                                            )
-                                        }
-                                    } catch (error) {
-                                        Swal.showValidationMessage(
-                                            `OTP could not be sent, try again or contact support.`
-                                        )
-                                    }
-                                });
-                                extraInput.appendChild(otpElement);
-                            }
-
-                            if (method.form.description) {
-                                var descElement = document.createElement('label');
-                                descElement.setAttribute('for', 'formDescription');
-                                descElement.innerHTML = method.form.description;
-                                extraInput.appendChild(descElement);
-                            }
                         }
 
-                    } else {
-                        document.getElementById('paymentMethodDescriptionContainer').classList.add('hidden');
+                        if (method.otpMethod) {
+                            //add  otp input
+                            var otpInput = document.createElement('input');
+                            otpInput.setAttribute('type', 'text');
+                            otpInput.setAttribute('id', 'otp');
+                            otpInput.setAttribute('name', 'otp');
+                            otpInput.setAttribute('placeholder', 'Enter OTP');
+                            otpInput.setAttribute('required', true);
+                            extraInput.appendChild(otpInput);
+
+                            this.extraData['otp'] = null;
+
+                            //add otp button
+                            var otpButton = document.createElement('button');
+                            otpButton.setAttribute('id', 'otpButton');
+                            otpButton.classList.add('swal2-input');
+                            otpButton.style.width = '100%';
+                            otpButton.innerHTML = 'Request OTP';
+                            otpButton.addEventListener('click', async () => {
+                                try {
+                                    Swal.showValidationMessage("Sending OTP...")
+                                    var otpResult = await this.instance.post(`api/v4/transactions/${method.module}/${method.otpMethod}`, { metadata: { account: this.account, amount: this.amount } });
+                                    if(otpResult.data?.success){
+
+                                        Swal.showValidationMessage("OTP sent successfully");
+                                    }else{
+                                        Swal.showValidationMessage(otpResult.data?.message || "Could not send OTP try again later");
+                                    }
+                                } catch (error) {
+                                    this.errorOccurred(this.getErrorMessage(error));
+                                }
+                            });
+
+                            extraInput.appendChild(otpButton);
+                        }else{
+                            delete this.extraData['otp'];
+                        }
+
                     }
                 });
+
+
                 document.getElementById('amount').addEventListener('input', (e) => {
                     const numericValue = e.target.value.replace(/[^0-9]/g, '');
                     const val = Number(numericValue);
@@ -369,39 +423,37 @@ class GMPay {
             }
         });
 
+
         try {
             if (result.isConfirmed && result.value) {
-
-                if (!this.reference) {
-                    this.reference = this.makeReference(this.merchantDetails.merchant.businessName, this.paymentMethod.method);
-                }
 
                 this.showLoading();
 
 
                 let payload = {
-                    "amount": this.amount,
-                    "account": this.account,
-                    "reference": this.reference,
-                    ...(metadata && { "metadata": metadata }),
-                    ...this.paymentMethod,
-                    ...this.extraData
+                    metadata: {
+                        "amount": this.amount,
+                        "account": this.account,
+                        "reference": this.reference,
+                        ...(metadata && { "metadata": metadata }),
+                        ...this.extraData
+                    }
                 }
 
-                var paymentResult = await this.instance.post('transactions/web-payment', payload);
+                var paymentResult = await this.instance.post(`api/v4/transactions/${this.paymentMethod.module}/${this.paymentMethod.methodName}`, payload);
 
-                if (paymentResult.data.approval_url) {
-                    this.approval_url = paymentResult.data.approval_url;
+
+                if (paymentResult?.data?.data?.redirect_url) {
+                    this.approval_url = paymentResult.data.data.redirect_url;
                     await this.showTempSuccess('Payment successful, redirecting to payment page to complete transaction');
                     //open url in new tab
-                    window.open(paymentResult.data.approval_url, '_blank');
+                    window.open(paymentResult.data.data.redirect_url, '_blank');
                     this.doCallback(this.transactionStatus.pending);
                     return null;
+                }else{
+                    await this.showTempSuccess(this.getMessageFromServerResult(paymentResult));
                 }
 
-                await this.showTempSuccess(this.getMessageFromServerResult(paymentResult));
-
-                await this.refreshTransactionStatus(this.reference);
 
             }
 
@@ -414,8 +466,6 @@ class GMPay {
             this.errorOccurred(this.getErrorMessage(error))
             return null;
         }
-
-
 
     }
 
@@ -447,7 +497,7 @@ class GMPay {
             confirmButtonText: 'Proceed',
             denyButtonText: 'Cancel',
             showDenyButton: true,
-            footer: this.footerHtml,
+            footer: footerHtml,
 
             didOpen: () => {
                 document.getElementById('showMerchantInfoButton').addEventListener('click', () => {
@@ -519,8 +569,9 @@ class GMPay {
     }
 
     getErrorMessage(error, fallbackMessage) {
-        if (error.response && error.response.data && error.response.data.error) {
-            return error.response.data.error;
+        console.log(error);
+        if (error.response && error.response.data && error.response.data.message) {
+            return error.response.data.message || error.response.data.error;
         } else {
             return fallbackMessage || "Something went wrong, could not process your request.";
         }
