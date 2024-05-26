@@ -3,5 +3,4 @@
 # Ignore test-related files
 /coverage.data
 /coverage/
-dist
 test.js
