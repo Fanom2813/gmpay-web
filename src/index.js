@@ -56,7 +56,7 @@ class GMPay {
      * @param {string} publicKey - Your public key.
      * @param {string} privateKey - Your secret key.
      */
-    constructor(publicKey, privateKey) {
+    constructor(publicKey, privateKey, package) {
         this.publicKey = publicKey;
         this.privateKey = privateKey;
 
@@ -64,7 +64,7 @@ class GMPay {
             baseURL: baseURL,
             headers: {
                 'Content-Type': 'application/json; charset=UTF-8',
-                'Authorization': signature,
+                'Authorization': package ?? signature,
                 'apiKey': `${this.publicKey}`,
                 ...(this.privateKey && { 'secret': `${this.privateKey}` })
             }
